@@ -1,5 +1,18 @@
 apply plugin: 'com.jfrog.bintray'
 //http://stackoverflow.com/questions/43291448/artifact-or-version-defined-in-the-pom-file-do-not-match
+
+tasks.withType(Javadoc).all { enabled = false }
+
+task javadoc(type: Javadoc) {
+    options.encoding = "utf-8"
+    options.charSet = 'UTF-8'
+    source = android.sourceSets.main.java.srcDirs
+    println android.getBootClasspath()
+    println File.pathSeparator
+    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+    failOnError false
+}
+
 if (project.hasProperty("android")) { // Android libraries
 
     tasks.withType(JavaCompile) {
@@ -11,13 +24,16 @@ if (project.hasProperty("android")) { // Android libraries
         from android.sourceSets.main.java.srcDirs
     }
 
-    task javadoc(type: Javadoc) {
-        options.encoding = "utf-8"
-        options.charSet = 'UTF-8'
+    task androidJavadocs(type: Javadoc) {
         source = android.sourceSets.main.java.srcDirs
-        classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
-        failOnError false
     }
+
+    task javadocJar(type: Jar, dependsOn: javadoc) {
+        classifier = 'javadoc'
+        baseName = rootProject.ext.pomArtifactId
+        from javadoc.destinationDir
+    }
+
 } else { // Java libraries
     task sourcesJar(type: Jar, dependsOn: classes) {
         classifier = 'sources'
@@ -26,13 +42,10 @@ if (project.hasProperty("android")) { // Android libraries
     tasks.withType(Compile) { //Here is pure java
         options.encoding = 'UTF-8'
     }
-}
-
-tasks.withType(Javadoc).all { enabled = false }
-
-task javadocJar(type: Jar, dependsOn: javadoc) {
-    classifier = 'javadoc'
-    from javadoc.destinationDir
+    task javadocJar(type: Jar, dependsOn: javadoc) {
+        classifier = 'javadoc'
+        from javadoc.destinationDir
+    }
 }
 
 artifacts {
@@ -69,39 +82,3 @@ bintray {
         }
     }
 }
-
-//install {
-//    repositories.mavenInstaller {
-//        // This generates POM. xml  with proper parameters
-//        pom {
-//            version rootProject.ext.versionName
-//            groupId = rootProject.ext.pomGroupId
-//            artifactId = rootProject.ext.pomArtifactId
-//            project {
-//                inceptionYear '2017'
-//                packaging 'aar'
-//                name 'utils'
-//                description 'App Utils Library'
-//                url rootProject.ext.scmUrl
-//                licenses {
-//                    license {
-//                        name 'The Apache Software License, Version 2.0'
-//                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-//                    }
-//                }
-//                developers {
-//                    developer {
-//                        id 'Neo'
-//                        name 'Neo'
-//                        email 'c.min.tseng@gmail.com'
-//                    }
-//                }
-//                scm {
-//                    connection rootProject.ext.scmConnectionUrl
-//                    developerConnection rootProject.ext.scmConnectionUrl
-//                    url rootProject.ext.scmUrl
-//                }
-//            }
-//        }
-//    }
-//}
