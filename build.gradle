@@ -314,8 +314,8 @@ ext {
     authorName = getAuthorName()
     authorEmail = getAuthorEmail()
     bracnch = getBranchName()
-    pomGroupId = 'utils.neo.idv'
-    pomArtifactId = 'utils'
+    pomUtilsGroupId = 'utils.neo.idv'
+    pomUtilsArtifactId = 'utils'
 // project homepage
     scmUrl = 'https://github.com/CMingTseng'
 // project git

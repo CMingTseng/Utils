@@ -1,13 +1,13 @@
 apply plugin: 'com.github.dcendents.android-maven'
-group = rootProject.ext.pomGroupId                           // Maven Group ID for the artifact
+group = rootProject.ext.pomUtilsGroupId                           // Maven Group ID for the artifact
 
 install {
     repositories.mavenInstaller {
         // This generates POM. xml  with proper parameters
         pom {
             version rootProject.ext.versionName
-            groupId = rootProject.ext.pomGroupId
-            artifactId = rootProject.ext.pomArtifactId
+            groupId = rootProject.ext.pomUtilsGroupId
+            artifactId = rootProject.ext.pomUtilsArtifactId
             project {
                 inceptionYear '2017'
                 packaging 'aar'
@@ -45,8 +45,8 @@ uploadArchives {
             repository(url: "file:///${rootProject.rootDir}/maven-repository")
             pom.project {
                 version rootProject.ext.versionName
-                groupId = rootProject.ext.pomGroupId
-                artifactId = rootProject.ext.pomArtifactId
+                groupId = rootProject.ext.pomUtilsGroupId
+                artifactId = rootProject.ext.pomUtilsArtifactId
                 licenses {
                     license {
                         name 'The Apache Software License, Version 2.0'
