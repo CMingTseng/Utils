@@ -1,15 +1,43 @@
 package idv.neo.utils;
 
+import com.google.zxing.common.BitMatrix;
+
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
 import android.graphics.Color;
 
 public class BitmapUtils {
-
+    private static final String TAG = BitmapUtils.class.getSimpleName();
     private static Bitmap img;
     private static int imgWidth;
     private static int imgHeight;
     private static int[] imgPixels;
+
+    public static Bitmap createQR_Code_Base_Bitmap(int qrcodewidth, int qrcodeheight) {
+        return Bitmap.createBitmap(qrcodewidth, qrcodeheight, Bitmap.Config.ARGB_8888);
+    }
+
+    public static Bitmap drawQR_CodeToBitmap(Bitmap bitmap, BitMatrix input, int qrcodewidth, int qrcodeheight) {
+        Bitmap output = bitmap;
+        if (bitmap == null) {
+            output = createQR_Code_Base_Bitmap(qrcodewidth, qrcodeheight);
+        }
+        if (input == null) {
+            return null;
+        }
+
+// 將 QR code 資料矩陣繪製到點陣圖上
+        for (int y = 0; y < qrcodeheight; y++) {
+            for (int x = 0; x < qrcodewidth; x++) {
+                output.setPixel(x, y, input.get(x, y) ? Color.BLACK : Color.WHITE);
+            }
+        }
+        return output;
+    }
+
+    public static Bitmap getQR_CodeBitmap(Bitmap bitmap, BitMatrix input, int qrcodewidth, int qrcodeheight) {
+        return drawQR_CodeToBitmap(bitmap, input, qrcodewidth, qrcodeheight);
+    }
 
     private static void setImgInfo(Bitmap image) {
         img = image;
