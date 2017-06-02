@@ -74,7 +74,7 @@ public class FolderFileUtils {
         }
     }
 
-    public class FileExtensionFilter implements FilenameFilter {
+    public static class FileExtensionFilter implements FilenameFilter {
         private Set<String> exts = new HashSet<String>();
 
         /**
@@ -207,7 +207,7 @@ public class FolderFileUtils {
         try {
             return am.list("");
         } catch (IOException e) {
-            Log.e("tag", "Failed to get asset file list.", e);
+            Log.e(TAG, "Failed to get asset file list.", e);
         }
         return null;
     }
@@ -230,7 +230,7 @@ public class FolderFileUtils {
                 }
             }
         } catch (IOException e) {
-            Log.e("tag", "Failed to get asset file list.", e);
+            Log.e(TAG, "Failed to get asset file list.", e);
         }
 
         return profiles.toArray(new String[profiles.size()]);
@@ -246,7 +246,7 @@ public class FolderFileUtils {
                 out.write(buffer, 0, read);
             }
         } catch (IOException e) {
-            Log.e("Error: ", e.getMessage());
+            Log.e(TAG, "Error : " + e.getMessage());
         }
     }
 }

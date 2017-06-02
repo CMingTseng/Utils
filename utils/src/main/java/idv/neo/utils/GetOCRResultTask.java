@@ -28,7 +28,6 @@ public class GetOCRResultTask extends AsyncTask<Object, Integer, String> {
     protected String doInBackground(Object... params) {
         Bitmap bitmap = (Bitmap) params[0];
         String language = (String) params[1];
-        Log.d(TAG, "doInBackground : ");
         final TessBaseAPI baseApi = new TessBaseAPI(new TessBaseAPI.ProgressNotifier() {
             @Override
             public void onProgressValues(TessBaseAPI.ProgressValues progressValues) {
