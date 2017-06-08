@@ -52,6 +52,25 @@ public class ImageProcessingUtils {
         return grayPixels;
     }
 
+    /**
+     * 轉變為2維灰度圖像
+     */
+    public static int[][] toGrays(int[][] pixels, int width, int height) {
+        final int[][] grayPixels = new int[width][height];
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                int pixel = pixels[x][y];
+                int r = (pixel >> 16) & 0xff;
+                int g = (pixel >> 8) & 0xff;
+                int b = (pixel) & 0xff;
+                int gray = new Double(0.299 * r + 0.587 * g + 0.114 * b).intValue();
+                //Bits 24-31 are alpha, 16-23 are red, 8-15 are green, 0-7 are blue
+                grayPixels[x][y] = 255 << 24 | gray << 16 | gray << 8 | gray;
+            }
+        }
+        return grayPixels;
+    }
+
     // 利用迭代法計算閾值
     public static int getIterationHresholdValue(int width, int height, int[] pixels, int minGrayValue, int maxGrayValue) {
         int T1;
