@@ -4,14 +4,15 @@ import com.google.zxing.common.BitMatrix;
 
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
+
+import java.io.ByteArrayOutputStream;
 
 public class BitmapUtils {
     private static final String TAG = BitmapUtils.class.getSimpleName();
-    private static Bitmap img;
-    private static int imgWidth;
-    private static int imgHeight;
-    private static int[] imgPixels;
 
     public static Bitmap createQR_Code_Base_Bitmap(int qrcodewidth, int qrcodeheight) {
         return Bitmap.createBitmap(qrcodewidth, qrcodeheight, Bitmap.Config.ARGB_8888);
@@ -35,45 +36,93 @@ public class BitmapUtils {
         return output;
     }
 
+    //http://blog.csdn.net/yanzi1225627/article/details/8626411
+    //https://stackoverflow.com/questions/9192982/displaying-yuv-image-in-android
+    public static Bitmap rawByteArrayUseYuvImagToRGBBitmap(byte[] data, int format, int width, int height) {
+        final YuvImage yuv_image = new YuvImage(data, format, width, height, null);
+        // Convert YuV to Jpeg
+//        final Rect rect = new Rect(0, 0, width, height);
+        final ByteArrayOutputStream os = new ByteArrayOutputStream(data.length);
+        yuv_image.compressToJpeg(new Rect(0, 0, width, height), 100, os);
+        final byte[] byt = os.toByteArray();
+        return BitmapFactory.decodeByteArray(byt, 0, byt.length);
+    }
+
+    //http://blog.csdn.net/fireworkburn/article/details/11615531
+    public static Bitmap rawByteArrayToRGBABitmap(byte[] data, int width, int height) {
+        final int frameSize = width * height;
+        final int[] rgba = new int[frameSize];
+        for (int i = 0; i < height; i++)
+            for (int j = 0; j < width; j++) {
+                int y = (0xff & ((int) data[i * width + j]));
+                int u = (0xff & ((int) data[frameSize + (i >> 1) * width + (j & ~1) + 0]));
+                int v = (0xff & ((int) data[frameSize + (i >> 1) * width + (j & ~1) + 1]));
+                y = y < 16 ? 16 : y;
+                int r = Math.round(1.164f * (y - 16) + 1.596f * (v - 128));
+                int g = Math.round(1.164f * (y - 16) - 0.813f * (v - 128) - 0.391f * (u - 128));
+                int b = Math.round(1.164f * (y - 16) + 2.018f * (u - 128));
+                r = r < 0 ? 0 : (r > 255 ? 255 : r);
+                g = g < 0 ? 0 : (g > 255 ? 255 : g);
+                b = b < 0 ? 0 : (b > 255 ? 255 : b);
+                rgba[i * width + j] = 0xff000000 + (b << 16) + (g << 8) + r;
+            }
+        final Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        bmp.setPixels(rgba, 0, width, 0, 0, width, height);
+        return bmp;
+    }
+
     public static Bitmap getQR_CodeBitmap(Bitmap bitmap, BitMatrix input, int qrcodewidth, int qrcodeheight) {
         return drawQR_CodeToBitmap(bitmap, input, qrcodewidth, qrcodeheight);
     }
 
-    private static void setImgInfo(Bitmap image) {
-        img = image;
-        imgWidth = img.getWidth();
-        imgHeight = img.getHeight();
-        imgPixels = new int[imgWidth * imgHeight];
-        img.getPixels(imgPixels, 0, imgWidth, 0, 0, imgWidth, imgHeight);
+    public static Bitmap doubleIntegerArrayToBitmap(int[][] pixelss, int width, int height) {
+        int[] pixels = new int[width * height];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                pixels[y * width + x] = pixelss[x][y];
+            }
+        }
+        return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888);
     }
 
     /**
      * 將圖片化成灰度圖
      */
-    public static Bitmap converyToGrayImg(Bitmap img) {
-
-        setImgInfo(img);
-
-        return getGrayImg();
+    public static Bitmap converyToGrayImg(Bitmap input) {
+        final int width = input.getWidth();
+        final int height = input.getHeight();
+        final int pixels[] = new int[width * height];
+        int alpha = 0xFF << 24;
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
+                int grey = pixels[width * i + j];
+                int red = ((grey & 0x00FF0000) >> 16);
+                int green = ((grey & 0x0000FF00) >> 8);
+                int blue = (grey & 0x000000FF);
+                grey = (int) ((float) red * 0.3 + (float) green * 0.59 + (float) blue * 0.11);
+                grey = alpha | (grey << 16) | (grey << 8) | grey;
+                pixels[width * i + j] = grey;
+            }
+        }
+        final Bitmap result = Bitmap.createBitmap(width, height, Config.RGB_565);
+        result.setPixels(pixels, 0, width, 0, 0, width, height);
+        return result;
     }
 
     /**
      * 對圖像進行預處理
      */
-    public static Bitmap doPretreatment(Bitmap img) {
-
-        setImgInfo(img);
-
-        Bitmap grayImg = getGrayImg();
-
-        int[] p = new int[2];
+    public static Bitmap doPretreatment(Bitmap input) {
+        final int width = input.getWidth();
+        final int height = input.getHeight();
+        final int[] pixels = new int[width * height];
         int maxGrayValue = 0, minGrayValue = 255;
         // 計算最大及最小灰度值
-        getMinMaxGrayValue(p);
+        int[] p = ImageProcessingUtils.getMinMaxGrayValue(width, height, pixels);
         minGrayValue = p[0];
         maxGrayValue = p[1];
         // 計算迭代法閾值
-        int T1 = getIterationHresholdValue(minGrayValue, maxGrayValue);
+        final int T1 = ImageProcessingUtils.getIterationHresholdValue(width, height, pixels, minGrayValue, maxGrayValue);
         // // 計算大津法閾值
         // int T2 = getOtsuHresholdValue(minGrayValue, maxGrayValue);
         // // 計算最大熵法閾值
@@ -81,262 +130,77 @@ public class BitmapUtils {
         // int[] T = { T1, T2, T3 };
         //
         // Bitmap result = selectBinarization(T);
-        Bitmap result = binarization(T1);
+//        Bitmap result = binarization(T1);
 
-        return result;
+        return binarization(input, T1);
     }
 
-    /**
-     * 獲取當前圖片的灰度圖
-     *
-     * @param img 原圖片
-     * @return 灰度圖
-     */
-    private static Bitmap getGrayImg() {
-
-        int alpha = 0xFF << 24;
-        for (int i = 0; i < imgHeight; i++) {
-            for (int j = 0; j < imgWidth; j++) {
-                int grey = imgPixels[imgWidth * i + j];
-
-                int red = ((grey & 0x00FF0000) >> 16);
-                int green = ((grey & 0x0000FF00) >> 8);
-                int blue = (grey & 0x000000FF);
-
-                grey = (int) ((float) red * 0.3 + (float) green * 0.59 + (float) blue * 0.11);
-                grey = alpha | (grey << 16) | (grey << 8) | grey;
-                imgPixels[imgWidth * i + j] = grey;
-            }
-        }
-        Bitmap result = Bitmap
-                .createBitmap(imgWidth, imgHeight, Config.RGB_565);
-        result.setPixels(imgPixels, 0, imgWidth, 0, 0, imgWidth, imgHeight);
-        return result;
-    }
-
-    private static int getGray(int argb) {
-        int alpha = 0xFF << 24;
-        int red = ((argb & 0x00FF0000) >> 16);
-        int green = ((argb & 0x0000FF00) >> 8);
-        int blue = (argb & 0x000000FF);
-        int grey;
-        grey = (int) ((float) red * 0.3 + (float) green * 0.59 + (float) blue * 0.11);
-        grey = alpha | (grey << 16) | (grey << 8) | grey;
-        return grey;
-    }
-
-    // 利用迭代法計算閾值
-    private static int getIterationHresholdValue(int minGrayValue,
-                                                 int maxGrayValue) {
-        int T1;
-        int T2 = (maxGrayValue + minGrayValue) / 2;
-        do {
-            T1 = T2;
-            double s = 0, l = 0, cs = 0, cl = 0;
-            for (int i = 0; i < imgHeight; i++) {
-                for (int j = 0; j < imgWidth; j++) {
-                    int gray = imgPixels[imgWidth * i + j];
-                    if (gray < T1) {
-                        s += gray;
-                        cs++;
-                    }
-                    if (gray > T1) {
-                        l += gray;
-                        cl++;
-                    }
-                }
-            }
-            T2 = (int) (s / cs + l / cl) / 2;
-        } while (T1 != T2);
-        return T1;
-    }
-
-    /*
-     * 用大津法計算閾值T 大津法又稱為最大類間方差法，由大津在1979年提出，選取使類間方差最
-     * 大的灰度級作為分割閾值，方差值越大，說明圖像兩部分差別越大。
-     */
-    private static int getOtsuHresholdValue(int minGrayValue, int maxGrayValue) {
-        int T = 0;
-        double U = 0, U0 = 0, U1 = 0;
-        double G = 0;
-        for (int i = minGrayValue; i <= maxGrayValue; i++) {
-            double s = 0, l = 0, cs = 0, cl = 0;
-            for (int j = 0; j < imgHeight - 1; j++) {
-                for (int k = 0; k < imgWidth - 1; k++) {
-                    int gray = imgPixels[imgWidth * j + k];
-                    if (gray < i) {
-                        s += gray;
-                        cs++;
-                    }
-                    if (gray > i) {
-                        l += gray;
-                        cl++;
-                    }
-                }
-            }
-            U0 = s / cs;
-            U1 = l / cl;
-            U = (s + l) / (cs + cl);
-            double g = (cs / (cs + cl)) * (U0 - U) * (U0 - U)
-                    + (cl / (cl + cs)) * (U1 - U) * (U1 - U);
-            if (g > G) {
-                T = i;
-                G = g;
-            }
-        }
-        return T;
-    }
-
-    // 採用一維最大熵法計算閾值
-    private static int getMaxEntropytHresholdValue(int minGrayValue,
-                                                   int maxGrayValue) {
-        int T3 = minGrayValue, sum = 0;
-        double E = 0, Ht = 0, Hl = 0;
-        int[] p = new int[maxGrayValue - minGrayValue + 1];
-        for (int i = minGrayValue; i <= maxGrayValue; i++) {
-            for (int j = 0; j < p.length; j++) {
-                p[j] = 0;
-            }
-            sum = 0;
-            for (int j = 0; j < imgHeight - 1; j++) {
-                for (int k = 0; k < imgWidth - 1; k++) {
-                    int gray = imgPixels[imgWidth * j + k];
-                    p[gray - minGrayValue] += 1;
-                    sum++;
-                }
-            }
-
-            double pt = 0;
-            int offset = maxGrayValue - i;
-            for (int j = 0; j < p.length - offset; j++) {
-                if (p[j] != 0) {
-                    Ht += (p[j] * (Math.log(p[j]) - Math.log(sum))) / sum;
-                    pt += p[j];
-                }
-            }
-            for (int j = p.length - offset; j < maxGrayValue - minGrayValue + 1; j++) {
-                if (p[j] != 0) {
-                    Ht += (p[j] * (Math.log(p[j]) - Math.log(sum))) / sum;
-                }
-            }
-            pt /= sum;
-            double e = Math.log(pt * (1 - pt)) - (Ht / pt) - Hl / (1 - pt);
-
-            if (E < e) {
-                E = e;
-                T3 = i;
-            }
-        }
-        return T3;
+    public static Bitmap doPretreatmentWithSelectBinarization(Bitmap input) {
+        final int width = input.getWidth();
+        final int height = input.getHeight();
+        final int[] pixels = new int[width * height];
+        int maxGrayValue = 0, minGrayValue = 255;
+        // 計算最大及最小灰度值
+        final int[] p = ImageProcessingUtils.getMinMaxGrayValue(width, height, pixels);
+        minGrayValue = p[0];
+        maxGrayValue = p[1];
+        // 計算迭代法閾值
+        final int T1 = ImageProcessingUtils.getIterationHresholdValue(width, height, pixels, minGrayValue, maxGrayValue);
+        // 計算大津法閾值
+        int T2 = ImageProcessingUtils.getOtsuHresholdValue(width, height, pixels, minGrayValue, maxGrayValue);
+        // 計算最大熵法閾值
+        int T3 = ImageProcessingUtils.getMaxEntropytHresholdValue(width, height, pixels, minGrayValue, maxGrayValue);
+        final int[] T = {T1, T2, T3};
+        return selectBinarization(input, T);
     }
 
     // 針對單個閾值二值化圖片
-    private static Bitmap binarization(int T) {
+    public static Bitmap binarization(Bitmap input, int T) {
+        final int width = input.getWidth();
+        final int height = input.getHeight();
+        final int pixels[] = new int[width * height];
         // 用閾值T1對圖像進行二值化
-        for (int i = 0; i < imgHeight; i++) {
-            for (int j = 0; j < imgWidth; j++) {
-                int gray = imgPixels[i * imgWidth + j];
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
+                int gray = pixels[i * width + j];
                 if (gray < T) {
                     // 小於閾值設為白色
-                    imgPixels[i * imgWidth + j] = Color.rgb(0, 0, 0);
+                    pixels[i * width + j] = Color.rgb(0, 0, 0);
                 } else {
                     // 大於閾值設為黑色
-                    imgPixels[i * imgWidth + j] = Color.rgb(255, 255, 255);
+                    pixels[i * width + j] = Color.rgb(255, 255, 255);
                 }
             }
         }
-
-        Bitmap result = Bitmap
-                .createBitmap(imgWidth, imgHeight, Config.RGB_565);
-        result.setPixels(imgPixels, 0, imgWidth, 0, 0, imgWidth, imgHeight);
-
+        final Bitmap result = Bitmap.createBitmap(width, height, Config.RGB_565);
+        result.setPixels(pixels, 0, width, 0, 0, width, height);
         return result;
-    }
-
-    // 計算最大最小灰度,保存在陣列中
-    private static void getMinMaxGrayValue(int[] p) {
-        int minGrayValue = 255;
-        int maxGrayValue = 0;
-        for (int i = 0; i < imgHeight - 1; i++) {
-            for (int j = 0; j < imgWidth - 1; j++) {
-                int gray = imgPixels[i * imgWidth + imgHeight];
-                if (gray < minGrayValue)
-                    minGrayValue = gray;
-                if (gray > maxGrayValue)
-                    maxGrayValue = gray;
-            }
-        }
-        p[0] = minGrayValue;
-        p[1] = maxGrayValue;
     }
 
     /**
      * 由3個閾值投票二值化圖片
      *
-     * @param img 原圖片
-     * @param T   三種方法獲得的閾值
+     * @param T 三種方法獲得的閾值
      * @return 二值化的圖片
      */
-    private static Bitmap selectBinarization(int[] T) {
-        for (int i = 0; i < imgHeight; i++) {
-            for (int j = 0; j < imgWidth; j++) {
-                int gray = imgPixels[i * imgWidth + j];
+//    public static Bitmap selectBinarization(Bitmap input,int width, int height, int[] pixels, int[] T) {
+    public static Bitmap selectBinarization(Bitmap input, int[] T) {
+        final int width = input.getWidth();
+        final int height = input.getHeight();
+        final int pixels[] = new int[width * height];
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
+                int gray = pixels[i * width + j];
                 if (gray < T[0] && gray < T[1] || gray < T[0] && gray < T[2]
                         || gray < T[1] && gray < T[2]) {
-                    imgPixels[i * imgWidth + j] = Color.rgb(0, 0, 0);
+                    pixels[i * width + j] = Color.rgb(0, 0, 0);
                 } else {
-                    imgPixels[i * imgWidth + j] = Color.rgb(255, 255, 255);
+                    pixels[i * width + j] = Color.rgb(255, 255, 255);
                 }
             }
         }
-
-        Bitmap result = Bitmap
-                .createBitmap(imgWidth, imgHeight, Config.RGB_565);
-        result.setPixels(imgPixels, 0, imgWidth, 0, 0, imgWidth, imgHeight);
-
+        final Bitmap result = Bitmap.createBitmap(width, height, Config.RGB_565);
+        result.setPixels(pixels, 0, width, 0, 0, width, height);
         return result;
-    }
-
-    // 計算圖元點（x,y)周圍圖元點的中值
-    private static int getCenterValue(Bitmap img, int x, int y) {
-        int[] pix = new int[9];
-
-        int w = img.getHeight() - 1;
-        int h = img.getWidth() - 1;
-        //
-        if (x > 0 && y > 0)
-            pix[0] = getGray(img.getPixel(x - 1, y - 1));
-        if (y > 0)
-            pix[1] = getGray(img.getPixel(x, y - 1));
-        if (x < h && y > 0)
-            pix[2] = getGray(img.getPixel(x + 1, y - 1));
-        if (x > 0)
-            pix[3] = getGray(img.getPixel(x - 1, y));
-        pix[4] = getGray(img.getPixel(x, y));
-        if (x < h)
-            pix[5] = getGray(img.getPixel(x + 1, y));
-        if (x > 0 && y < w)
-            pix[6] = getGray(img.getPixel(x - 1, y + 1));
-        if (y < w)
-            pix[7] = getGray(img.getPixel(x, y + 1));
-        if (x < h && y < w)
-            pix[8] = getGray(img.getPixel(x + 1, y + 1));
-
-        int max = 0, min = 255;
-        for (int i = 0; i < pix.length; i++) {
-            if (pix[i] > max)
-                max = pix[i];
-            if (pix[i] < min)
-                min = pix[i];
-        }
-        int count = 0;
-        int i = 0;
-        for (i = 0; i < 9; i++) {
-            if (pix[i] >= min)
-                count++;
-            if (count == 5)
-                break;
-        }
-        return pix[i];
     }
 }
