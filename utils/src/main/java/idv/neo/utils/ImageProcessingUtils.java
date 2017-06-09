@@ -2,6 +2,8 @@ package idv.neo.utils;
 
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.util.Log;
 
 import java.util.Map;
@@ -337,6 +339,7 @@ public class ImageProcessingUtils {
         return pix[i];
     }
 
+    //http://aiilive.blog.51cto.com/1925756/1718960
     public static int getGray(int argb) {
         int alpha = 0xFF << 24;
         int red = ((argb & 0x00FF0000) >> 16);
@@ -346,6 +349,24 @@ public class ImageProcessingUtils {
         grey = (int) ((float) red * 0.3 + (float) green * 0.59 + (float) blue * 0.11);
         grey = alpha | (grey << 16) | (grey << 8) | grey;
         return grey;
+    }
+
+    public static int[] transformGrayProcess(int srcwidth, int srcheight) {
+        final int[] pixels = new int[srcwidth * srcheight];
+        for (int i = 0; i < srcheight; i++) {
+            for (int j = 0; j < srcwidth; j++) {
+                int operate_index = pixels[srcwidth * i + j];
+                operate_index = getGray(pixels[srcwidth * i + j]);
+                pixels[srcwidth * i + j] = getGray(operate_index);
+            }
+        }
+        return pixels;
+    }
+
+    public static ColorMatrixColorFilter transformGrayWithColorMatrixProcess() {
+        final ColorMatrix cm = new ColorMatrix();
+        cm.setSaturation(0);
+        return new ColorMatrixColorFilter(cm);
     }
 
     /**
